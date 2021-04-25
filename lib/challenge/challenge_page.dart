@@ -1,16 +1,37 @@
+import 'package:devquiz/challenge/challenge_controller.dart';
 import 'package:devquiz/challenge/widgets/next_button/next_butto_widget.dart';
 import 'package:devquiz/challenge/widgets/question_indicator/question_indicator_widget.dart';
 import 'package:devquiz/challenge/widgets/quiz/quiz_widget.dart';
+import 'package:devquiz/shared/models/question_model.dart';
 import 'package:flutter/material.dart';
 
 class ChallengePage extends StatefulWidget {
-  ChallengePage({Key? key}) : super(key: key);
+  final List<QuestionModel> questions;
+  ChallengePage({Key? key, required this.questions}) : super(key: key);
 
   @override
   _ChallengePageState createState() => _ChallengePageState();
 }
 
 class _ChallengePageState extends State<ChallengePage> {
+  final controller = ChallengeController();
+  final pageController = PageController();
+  @override
+  void initState() {
+    pageController.addListener(() {
+      controller.currentPage = pageController.page!.toInt() + 1;
+    }); // TODO: implement initState
+    super.initState();
+  }
+
+  void nextPage() {
+    if (controller.currentPage < widget.questions.length)
+      pageController.nextPage(
+        duration: Duration(milliseconds: 250),
+        curve: Curves.linear,
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -27,32 +48,53 @@ class _ChallengePageState extends State<ChallengePage> {
                   Navigator.pop(context);
                 },
               ),
-              QuestionIndicatorWidget(),
+              ValueListenableBuilder<int>(
+                  valueListenable: controller.currentPageNotifier,
+                  builder: (context, value, _) => QuestionIndicatorWidget(
+                        currentPage: value,
+                        lenght: widget.questions.length,
+                      )),
             ],
           ),
         ),
       ),
-      body: QuizWidget(
-        title: "O que o Flutter faz em sua totalidade?",
+      body: PageView(
+        physics: NeverScrollableScrollPhysics(),
+        controller: pageController,
+        children: widget.questions
+            .map(
+              (e) => QuizWidget(
+                question: e,
+                onChange: nextPage,
+              ),
+            )
+            .toList(),
       ),
       bottomNavigationBar: SafeArea(
         bottom: true,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Expanded(
-                  child: NextButtonWidget.white(label: "Fácil", onTap: () {})),
-              SizedBox(
-                width: 7,
-              ),
-              Expanded(
-                  child:
-                      NextButtonWidget.green(label: "Confirmar", onTap: () {})),
-            ],
-          ),
-        ),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: ValueListenableBuilder<int>(
+                valueListenable: controller.currentPageNotifier,
+                builder: (context, value, _) => Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        if (value < widget.questions.length)
+                          Expanded(
+                            child: NextButtonWidget.white(
+                              label: "Pular",
+                              onTap: nextPage,
+                            ),
+                          ),
+                        if (value == widget.questions.length)
+                          Expanded(
+                              child: NextButtonWidget.green(
+                                  label: "Confirmar",
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                  })),
+                      ],
+                    ))),
       ),
     );
   }
